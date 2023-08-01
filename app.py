@@ -5,7 +5,7 @@ import sys
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://chitrarajasekaran@localhost:5432/todoapp'
 db = SQLAlchemy(app)
-# migrate = Migrate(app,db)
+migrate = Migrate(app,db)
 app.app_context().push()
 
 class Todo(db.Model):
@@ -17,7 +17,7 @@ class Todo(db.Model):
     def __repr__(self):
         return f'<Todo {self.id} {self.description}'
     
-db.create_all()
+# db.create_all()
 #route for general html form submission without AJAX
 # @app.route('/todos/create', methods=['POST'])
 # def create_todo():
@@ -45,7 +45,30 @@ def create_todo():
         if not error:
             return jsonify(body)
 
+@app.route('/todos/<todo_id>/set-completed', methods=['POST'])
+def set_completed_todo(todo_id):
+    try: 
+        completed = request.get_json()['completed']
+        todo = Todo.query.get(todo_id)
+        todo.completed = completed
+        db.session.commit()
+    except:
+        db.session.rollback()
+    finally:
+        db.session.close()
+    return redirect(url_for('index'))
+
+@app.route('/todos/<todo_id>', methods=['GET'])
+def delete_todo(todo_id):
+    try:
+        Todo.query.filter_by(id=todo_id).delete()
+        db.session.commit()
+    except: 
+        db.session.rollback()
+    finally:
+        db.session.close()
+    return redirect(url_for('index'))
 
 @app.route('/')
 def index():
-    return render_template('index.html', data = Todo.query.all())
+    return render_template('index.html', data = Todo.query.order_by('description').all())
